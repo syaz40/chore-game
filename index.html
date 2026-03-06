@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chore Remix Battle: iPad Edition</title>
+    <!-- Library untuk animasi kemenangan -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --cyan: #00ffff;
+            --pink: #ff00ff;
+            --yellow: #ffea00;
+            --dark: #0a0a0a;
+        }
+
+        body {
+            font-family: 'Arial Black', sans-serif;
+            background: var(--dark);
+            color: white;
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            touch-action: manipulation;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Pengurusan Skrin */
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            top: 0; left: 0;
+            z-index: 10;
+            background: var(--dark);
+        }
+
+        .active-screen { display: flex; }
+
+        h1 {
+            font-size: 28px;
+            color: var(--cyan);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 15px var(--cyan);
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        /* Start Screen */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 80%;
+            max-width: 400px;
+        }
+
+        input {
+            padding: 20px;
+            font-size: 20px;
+            border-radius: 15px;
+            border: 3px solid var(--cyan);
+            background: #222;
+            color: white;
+            text-align: center;
+            font-family: inherit;
+        }
+
+        .btn-start, .btn-restart {
+            padding: 20px 40px;
+            font-size: 22px;
+            background: var(--pink);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 20px var(--pink);
+            text-transform: uppercase;
+        }
+
+        /* Timer */
+        .timer-box {
+            font-size: 40px;
+            background: #1a1a1a;
+            padding: 10px 30px;
+            border-radius: 15px;
+            border: 4px solid var(--pink);
+            margin-bottom: 15px;
+            color: white;
+            box-shadow: 0 0 20px var(--pink);
+            font-family: monospace;
+            z-index: 5;
+        }
+
+        /* Grid untuk iPad */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            width: 90vw;
+            max-width: 650px;
+            perspective: 1000px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            aspect-ratio: 3/4;
+            cursor: pointer;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .card.flipped { transform: rotateY(180deg); }
+        .card.matched { opacity: 0.3; pointer-events: none; transform: scale(0.9) rotateY(180deg); }
+
+        .front, .back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid #333;
+        }
+
+        .back {
+            background: linear-gradient(135deg, #111, #000);
+            border-color: var(--cyan);
+            font-size: 40px;
+            color: var(--cyan);
+            box-shadow: inset 0 0 15px rgba(0, 255, 255, 0.2);
+        }
+
+        .front {
+            background: white;
+            transform: rotateY(180deg);
+            color: #000;
+            text-align: center;
+            padding: 5px;
+        }
+
+        .emoji { font-size: 38px; }
+        .label { 
+            font-size: 10px; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            margin-top: 5px;
+            color: #333;
+        }
+
+        /* Overlay Kemenangan */
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.98);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .overlay h2 { font-size: 50px; color: var(--yellow); margin: 0; text-shadow: 0 0 20px orange; }
+        .overlay p { font-size: 20px; margin: 10px 0; color: #ccc; }
+        .final-time { font-size: 70px; color: white; font-family: monospace; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+    <!-- SKRIN MULA -->
+    <div id="startScreen" class="screen active-screen">
+        <h1>🔥 CHORE REMIX BATTLE 🔥</h1>
+        <div class="input-group">
+            <input type="text" id="playerName" placeholder="Enter Your Name..." maxlength="15">
+            <button class="btn-start" onclick="startGame()">ENTER THE BATTLE</button>
+        </div>
+        <p style="color: #666; margin-top: 20px;">Ready your fingers, Chore Hero!</p>
+    </div>
+
+    <!-- SKRIN PERMAINAN -->
+    <div id="gameUI" style="display: none; flex-direction: column; align-items: center;">
+        <h1>BATTLE IN PROGRESS</h1>
+        <div class="timer-box" id="timer">0.0s</div>
+        <div class="grid" id="gameGrid"></div>
+        <div id="statusMsg"></div>
+    </div>
+
+    <!-- SKRIN MENANG -->
+    <div class="overlay" id="winOverlay">
+        <h2>VICTORY!</h2>
+        <p id="congratsText">Hero Name</p>
+        <div class="final-time" id="finalTimeDisplay">0.0s</div>
+        <div id="syncStatus" style="margin-bottom: 20px; color: var(--cyan);">Uploading score...</div>
+        <button class="btn-restart" onclick="location.reload()">BATTLE AGAIN</button>
+    </div>
+
+    <script>
+        // URL Google Script awak
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/a/macros/moe-dl.edu.my/s/AKfycbx4Ixv5Z4ZBxMh-R1mscrd9DSmyjCGp_0HTv9U_WN1p0q0lJ0AEytRRR_byB3lZyG_6/exec"; 
+
+        const choreData = [
+            { name: "take out rubbish", img: "🗑️" }, 
+            { name: "mop floor", img: "🧼" },
+            { name: "sweep floor", img: "🧹" }, 
+            { name: "rake leaves", img: "🍂" },
+            { name: "wash dishes", img: "🍽️" }, 
+            { name: "do laundry", img: "🧺" },
+            { name: "fold clothes", img: "👕" }, 
+            { name: "make the bed", img: "🛏️" },
+            { name: "feed the pets", img: "🐾" }, 
+            { name: "set the table", img: "🍴" }
+        ];
+
+        let cards = [...choreData, ...choreData].sort(() => Math.random() - 0.5);
+        let flipped = [];
+        let matched = 0;
+        let time = 0;
+        let gameActive = false;
+        let timerInterval;
+        let audioCtx = null;
+        let musicLoop = null;
+        let currentPlayer = "";
+
+        // --- ENJIN AUDIO (SYNTH) ---
+        function playSynth(freq, type, duration, vol) {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function startRemixMusic() {
+            if (musicLoop) return;
+            let beat = 0;
+            musicLoop = setInterval(() => {
+                if (gameActive) {
+                    if (beat % 4 === 0) playSynth(60, 'square', 0.2, 0.3);
+                    if (beat % 4 === 2) playSynth(150, 'sawtooth', 0.1, 0.2);
+                    let notes = [110, 130, 164, 110];
+                    // Nada semakin naik bila banyak padanan dijumpai
+                    playSynth(notes[beat % 4] + (matched * 10), 'triangle', 0.15, 0.3);
+                    beat++;
+                }
+            }, 150);
+        }
+
+        // --- LOGIK PERMAINAN ---
+        function startGame() {
+            const nameInput = document.getElementById('playerName');
+            if (!nameInput.value.trim()) {
+                nameInput.style.borderColor = 'red';
+                return;
+            }
+            currentPlayer = nameInput.value.trim();
+            document.getElementById('startScreen').classList.remove('active-screen');
+            document.getElementById('gameUI').style.display = 'flex';
+            
+            initGrid();
+            
+            // Pengaktifan audio untuk iOS/Safari
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            startRemixMusic();
+        }
+
+        function initGrid() {
+            const grid = document.getElementById('gameGrid');
+            cards.forEach(chore => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.innerHTML = `
+                    <div class="back">?</div>
+                    <div class="front">
+                        <div class="emoji">${chore.img}</div>
+                        <div class="label">${chore.name}</div>
+                    </div>`;
+                
+                card.dataset.name = chore.name;
+                card.onclick = () => flip(card);
+                grid.appendChild(card);
+            });
+        }
+
+        function flip(card) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            if (!gameActive && matched < cards.length) {
+                gameActive = true;
+                timerInterval = setInterval(() => {
+                    time += 0.1;
+                    document.getElementById('timer').innerText = time.toFixed(1) + "s";
+                }, 100);
+            }
+
+            if (flipped.length < 2 && !card.classList.contains('flipped') && !card.classList.contains('matched')) {
+                card.classList.add('flipped');
+                flipped.push(card);
+                if (flipped.length === 2) setTimeout(checkMatch, 400);
+            }
+        }
+
+        function checkMatch() {
+            const [c1, c2] = flipped;
+            if (c1.dataset.name === c2.dataset.name) {
+                playSynth(800, 'sine', 0.4, 0.4);
+                c1.classList.add('matched');
+                c2.classList.add('matched');
+                matched += 2;
+                if (matched === cards.length) win();
+            } else {
+                playSynth(100, 'sawtooth', 0.2, 0.3);
+                c1.classList.remove('flipped');
+                c2.classList.remove('flipped');
+            }
+            flipped = [];
+        }
+
+        function win() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            
+            // Animasi Confetti
+            confetti({
+                particleCount: 400,
+                spread: 120,
+                origin: { y: 0.6 },
+                colors: ['#00ffff', '#ff00ff', '#ffea00']
+            });
+
+            document.getElementById('congratsText').innerText = `LEGENDARY: ${currentPlayer}`;
+            document.getElementById('finalTimeDisplay').innerText = time.toFixed(1) + "s";
+            document.getElementById('winOverlay').style.display = 'flex';
+
+            submitScore(currentPlayer, time.toFixed(1));
+        }
+
+        // --- PENGHANTARAN DATA KE GOOGLE SHEETS ---
+        async function submitScore(name, score) {
+            const statusLabel = document.getElementById('syncStatus');
+            
+            // Simpan di memori lokal iPad sebagai backup
+            const localScores = JSON.parse(localStorage.getItem('choreHeroScores') || '[]');
+            localScores.push({ name, score, date: new Date().toISOString() });
+            localStorage.setItem('choreHeroScores', JSON.stringify(localScores));
+
+            if (!GOOGLE_SCRIPT_URL) {
+                statusLabel.innerText = "Leaderboard: Offline (Local Only)";
+                return;
+            }
+
+            try {
+                // Menggunakan fetch untuk hantar data ke Sheets
+                await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, time: score })
+                });
+                statusLabel.innerText = "✅ Score Synced to Class Leaderboard!";
+                statusLabel.style.color = "var(--yellow)";
+            } catch (err) {
+                console.error(err);
+                statusLabel.innerText = "❌ Sync Error (Saved Locally)";
+                statusLabel.style.color = "red";
+            }
+        }
+    </script>
+</body>
+</html>
