@@ -54,24 +54,30 @@
             text-align: center;
         }
 
-        /* Start Screen */
+        /* Skrin Mula */
         .input-group {
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            width: 80%;
+            gap: 15px;
+            width: 85%;
             max-width: 400px;
         }
 
         input {
-            padding: 20px;
-            font-size: 20px;
-            border-radius: 15px;
+            padding: 18px;
+            font-size: 18px;
+            border-radius: 12px;
             border: 3px solid var(--cyan);
             background: #222;
             color: white;
             text-align: center;
             font-family: inherit;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--pink);
+            box-shadow: 0 0 10px var(--pink);
         }
 
         .btn-start, .btn-restart {
@@ -85,9 +91,10 @@
             cursor: pointer;
             box-shadow: 0 0 20px var(--pink);
             text-transform: uppercase;
+            margin-top: 10px;
         }
 
-        /* Timer */
+        /* Paparan Masa */
         .timer-box {
             font-size: 40px;
             background: #1a1a1a;
@@ -122,7 +129,7 @@
 
         .card.flipped { transform: rotateY(180deg); }
         
-        /* Kad yang sudah matched akan terus HILANG (visibility hidden) */
+        /* Kad matched akan terus HILANG (Visibility Hidden) */
         .card.matched { 
             visibility: hidden; 
             pointer-events: none; 
@@ -167,7 +174,7 @@
             color: #333;
         }
 
-        /* Overlay Kemenangan */
+        /* Paparan Kemenangan */
         .overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.98);
@@ -180,8 +187,9 @@
         }
 
         .overlay h2 { font-size: 50px; color: var(--yellow); margin: 0; text-shadow: 0 0 20px orange; }
-        .overlay p { font-size: 20px; margin: 10px 0; color: #ccc; }
-        .final-time { font-size: 70px; color: white; font-family: monospace; margin: 20px 0; }
+        .overlay p { font-size: 18px; margin: 5px 0; color: #ccc; }
+        .final-time { font-size: 70px; color: white; font-family: monospace; margin: 15px 0; }
+        .player-info { color: var(--cyan); font-size: 22px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -190,10 +198,11 @@
     <div id="startScreen" class="screen active-screen">
         <h1>🔥 CHORE REMIX BATTLE 🔥</h1>
         <div class="input-group">
-            <input type="text" id="playerName" placeholder="Enter Your Name..." maxlength="15">
+            <input type="text" id="playerName" placeholder="Student Name..." maxlength="15">
+            <input type="text" id="playerClass" placeholder="Class (e.g. 5 Amanah)..." maxlength="10">
             <button class="btn-start" onclick="startGame()">ENTER THE BATTLE</button>
         </div>
-        <p style="color: #666; margin-top: 20px;">Ready your fingers, Chore Hero!</p>
+        <p style="color: #666; margin-top: 20px;">Beat the clock, save the day!</p>
     </div>
 
     <!-- SKRIN PERMAINAN -->
@@ -207,15 +216,15 @@
     <!-- SKRIN MENANG -->
     <div class="overlay" id="winOverlay">
         <h2>VICTORY!</h2>
-        <p id="congratsText">Hero Name</p>
+        <div class="player-info" id="congratsText">Hero Name</div>
         <div class="final-time" id="finalTimeDisplay">0.0s</div>
         <div id="syncStatus" style="margin-bottom: 20px; color: var(--cyan);">Uploading score...</div>
         <button class="btn-restart" onclick="location.reload()">BATTLE AGAIN</button>
     </div>
 
     <script>
-        // KEMASKINI: URL Web App baharu yang anda berikan
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/a/macros/moe-dl.edu.my/s/AKfycbx4Ixv5Z4ZBxMh-R1mscrd9DSmyjCGp_0HTv9U_WN1p0q0lJ0AEytRRR_byB3lZyG_6/exec"; 
+        // URL WEB APP BAHARU
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz54NRDMMc6J_yyka9vNa7EWpR2I1rC9jxFwOnOrncrCY29pWGE858xsho-OUEQKi5H/exec"; 
 
         const choreData = [
             { name: "take out rubbish", img: "🗑️" }, 
@@ -239,6 +248,7 @@
         let audioCtx = null;
         let musicLoop = null;
         let currentPlayer = "";
+        let currentClass = "";
 
         // --- ENJIN AUDIO (SYNTH) ---
         function playSynth(freq, type, duration, vol) {
@@ -272,11 +282,17 @@
         // --- LOGIK PERMAINAN ---
         function startGame() {
             const nameInput = document.getElementById('playerName');
-            if (!nameInput.value.trim()) {
-                nameInput.style.borderColor = 'red';
+            const classInput = document.getElementById('playerClass');
+            
+            if (!nameInput.value.trim() || !classInput.value.trim()) {
+                if(!nameInput.value.trim()) nameInput.style.borderColor = 'red';
+                if(!classInput.value.trim()) classInput.style.borderColor = 'red';
                 return;
             }
+
             currentPlayer = nameInput.value.trim();
+            currentClass = classInput.value.trim();
+
             document.getElementById('startScreen').classList.remove('active-screen');
             document.getElementById('gameUI').style.display = 'flex';
             
@@ -289,7 +305,7 @@
 
         function initGrid() {
             const grid = document.getElementById('gameGrid');
-            grid.innerHTML = ""; // Bersihkan grid sebelum mula
+            grid.innerHTML = "";
             cards.forEach(chore => {
                 const card = document.createElement('div');
                 card.classList.add('card');
@@ -351,21 +367,21 @@
                 colors: ['#00ffff', '#ff00ff', '#ffea00']
             });
 
-            document.getElementById('congratsText').innerText = `LEGENDARY: ${currentPlayer}`;
+            document.getElementById('congratsText').innerText = `${currentPlayer} (${currentClass})`;
             document.getElementById('finalTimeDisplay').innerText = time.toFixed(1) + "s";
             document.getElementById('winOverlay').style.display = 'flex';
 
-            submitScore(currentPlayer, time.toFixed(1));
+            submitScore(currentPlayer, currentClass, time.toFixed(1));
         }
 
         // --- PENGHANTARAN DATA KE GOOGLE SHEETS ---
-        async function submitScore(name, score) {
+        async function submitScore(name, pClass, score) {
             const statusLabel = document.getElementById('syncStatus');
             
             try {
-                // Gunakan URLSearchParams untuk keserasian doPost Google Apps Script
                 const params = new URLSearchParams();
                 params.append('name', name);
+                params.append('class', pClass);
                 params.append('time', score);
 
                 await fetch(GOOGLE_SCRIPT_URL, {
@@ -377,11 +393,11 @@
                     body: params
                 });
 
-                statusLabel.innerText = "✅ Score Recorded in Class Leaderboard!";
+                statusLabel.innerText = "✅ Score Recorded Successfully!";
                 statusLabel.style.color = "var(--yellow)";
             } catch (err) {
                 console.error(err);
-                statusLabel.innerText = "❌ Sync Error (Local Saved Only)";
+                statusLabel.innerText = "❌ Sync Error (Saved Locally)";
                 statusLabel.style.color = "red";
             }
         }
