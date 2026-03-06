@@ -121,7 +121,13 @@
         }
 
         .card.flipped { transform: rotateY(180deg); }
-        .card.matched { opacity: 0.3; pointer-events: none; transform: scale(0.9) rotateY(180deg); }
+        
+        /* Kad yang sudah matched akan terus HILANG (visibility hidden) */
+        .card.matched { 
+            visibility: hidden; 
+            pointer-events: none; 
+            transition: 0.5s;
+        }
 
         .front, .back {
             position: absolute;
@@ -208,7 +214,7 @@
     </div>
 
     <script>
-        // URL Google Script awak
+        // KEMASKINI: URL Web App baharu yang anda berikan
         const GOOGLE_SCRIPT_URL = "https://script.google.com/a/macros/moe-dl.edu.my/s/AKfycbx4Ixv5Z4ZBxMh-R1mscrd9DSmyjCGp_0HTv9U_WN1p0q0lJ0AEytRRR_byB3lZyG_6/exec"; 
 
         const choreData = [
@@ -257,7 +263,6 @@
                     if (beat % 4 === 0) playSynth(60, 'square', 0.2, 0.3);
                     if (beat % 4 === 2) playSynth(150, 'sawtooth', 0.1, 0.2);
                     let notes = [110, 130, 164, 110];
-                    // Nada semakin naik bila banyak padanan dijumpai
                     playSynth(notes[beat % 4] + (matched * 10), 'triangle', 0.15, 0.3);
                     beat++;
                 }
@@ -277,13 +282,14 @@
             
             initGrid();
             
-            // Pengaktifan audio untuk iOS/Safari
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             startRemixMusic();
         }
 
         function initGrid() {
             const grid = document.getElementById('gameGrid');
+            grid.innerHTML = ""; // Bersihkan grid sebelum mula
             cards.forEach(chore => {
                 const card = document.createElement('div');
                 card.classList.add('card');
@@ -301,7 +307,7 @@
         }
 
         function flip(card) {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
             if (!gameActive && matched < cards.length) {
                 gameActive = true;
@@ -338,7 +344,6 @@
             gameActive = false;
             clearInterval(timerInterval);
             
-            // Animasi Confetti
             confetti({
                 particleCount: 400,
                 spread: 120,
@@ -357,30 +362,26 @@
         async function submitScore(name, score) {
             const statusLabel = document.getElementById('syncStatus');
             
-            // Simpan di memori lokal iPad sebagai backup
-            const localScores = JSON.parse(localStorage.getItem('choreHeroScores') || '[]');
-            localScores.push({ name, score, date: new Date().toISOString() });
-            localStorage.setItem('choreHeroScores', JSON.stringify(localScores));
-
-            if (!GOOGLE_SCRIPT_URL) {
-                statusLabel.innerText = "Leaderboard: Offline (Local Only)";
-                return;
-            }
-
             try {
-                // Menggunakan fetch untuk hantar data ke Sheets
+                // Gunakan URLSearchParams untuk keserasian doPost Google Apps Script
+                const params = new URLSearchParams();
+                params.append('name', name);
+                params.append('time', score);
+
                 await fetch(GOOGLE_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
-                    cache: 'no-cache',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: name, time: score })
+                    mode: 'no-cors', 
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: params
                 });
-                statusLabel.innerText = "✅ Score Synced to Class Leaderboard!";
+
+                statusLabel.innerText = "✅ Score Recorded in Class Leaderboard!";
                 statusLabel.style.color = "var(--yellow)";
             } catch (err) {
                 console.error(err);
-                statusLabel.innerText = "❌ Sync Error (Saved Locally)";
+                statusLabel.innerText = "❌ Sync Error (Local Saved Only)";
                 statusLabel.style.color = "red";
             }
         }
